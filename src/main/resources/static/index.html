@@ -1,0 +1,508 @@
+<!doctype html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Activity Finder</title>
+    <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --ground: #F6F4EF;
+            --surface: #FFFFFF;
+            --ink: #16181B;
+            --muted: #5A6068;
+            --line: #E2DDD2;
+            --green: #2E6B4E;
+            --green-dark: #24543D;
+            --red: #B03A2E;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            background: var(--ground);
+            color: var(--ink);
+            font-family: 'DM Sans', system-ui, sans-serif;
+            font-size: 15px;
+        }
+        h1, h2, h3 { font-family: 'Archivo', system-ui, sans-serif; letter-spacing: -0.5px; margin: 0; }
+        header {
+            background: var(--surface);
+            border-bottom: 1px solid var(--line);
+            padding: 0 24px;
+            height: 64px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .brand { font-family: 'Archivo', sans-serif; font-weight: 800; font-size: 20px; cursor: pointer; }
+        .spacer { flex-grow: 1; }
+        main { max-width: 1000px; margin: 0 auto; padding: 24px; }
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            padding: 18px;
+        }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+        button {
+            font-family: inherit;
+            font-size: 15px;
+            border-radius: 10px;
+            border: 1px solid var(--line);
+            background: var(--surface);
+            color: var(--ink);
+            padding: 10px 16px;
+            cursor: pointer;
+        }
+        button:hover { border-color: var(--muted); }
+        button.primary { background: var(--green); border-color: var(--green); color: #fff; font-weight: 700; }
+        button.primary:hover { background: var(--green-dark); }
+        button.active { background: var(--green); border-color: var(--green); color: #fff; }
+        button:disabled { opacity: 0.55; cursor: not-allowed; }
+        input, select, textarea {
+            font-family: inherit;
+            font-size: 15px;
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            background: var(--surface);
+            color: var(--ink);
+        }
+        label { display: block; font-size: 13px; font-weight: 700; margin-bottom: 5px; }
+        .field { margin-bottom: 12px; }
+        .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+        .row > .field { flex: 1 1 200px; margin-bottom: 0; }
+        .muted { color: var(--muted); font-size: 13px; }
+        .pill {
+            display: inline-block;
+            padding: 4px 9px;
+            border-radius: 7px;
+            background: #E8F0EA;
+            color: var(--green);
+            font-size: 12px;
+            font-weight: 700;
+        }
+        .error { color: var(--red); font-size: 14px; margin: 10px 0; }
+        .hidden { display: none; }
+        .msg { padding: 10px 12px; background: var(--ground); border-radius: 10px; margin-bottom: 8px; }
+        .chat { max-height: 320px; overflow-y: auto; margin-bottom: 12px; }
+        a.link { color: var(--green); cursor: pointer; text-decoration: underline; }
+    </style>
+</head>
+<body>
+
+<header>
+    <span class="brand" onclick="showFeed()">Activity Finder</span>
+    <span class="spacer"></span>
+    <span id="who" class="muted"></span>
+    <button id="logoutBtn" class="hidden" onclick="logout()">Выйти</button>
+</header>
+
+<main>
+
+    <!-- ЭКРАН: ВХОД -->
+    <section id="authScreen" class="hidden">
+        <div class="card" style="max-width: 420px; margin: 40px auto;">
+            <h2 id="authTitle" style="margin-bottom: 16px;">Вход</h2>
+
+            <div id="usernameField" class="field hidden">
+                <label for="username">Имя пользователя</label>
+                <input id="username" type="text">
+            </div>
+
+            <div class="field">
+                <label for="email">Email</label>
+                <input id="email" type="email">
+            </div>
+
+            <div class="field">
+                <label for="password">Пароль</label>
+                <input id="password" type="password">
+            </div>
+
+            <div id="cityField" class="field hidden">
+                <label for="city">Город</label>
+                <input id="city" type="text" value="Астана">
+            </div>
+
+            <div id="authError" class="error"></div>
+
+            <button class="primary" style="width:100%" onclick="submitAuth()">Продолжить</button>
+            <p class="muted" style="margin-bottom:0">
+                <span id="authSwitchText">Нет аккаунта?</span>
+                <a class="link" onclick="toggleAuthMode()"><span id="authSwitchLink">Зарегистрироваться</span></a>
+            </p>
+        </div>
+    </section>
+
+    <!-- ЭКРАН: ЛЕНТА -->
+    <section id="feedScreen" class="hidden">
+        <div class="row" style="margin-bottom: 16px;">
+            <h1>Активности</h1>
+            <span class="spacer"></span>
+            <button class="primary" onclick="toggleCreateForm()">Создать активность</button>
+        </div>
+
+        <div id="createForm" class="card hidden" style="margin-bottom: 20px;">
+            <h3 style="margin-bottom: 14px;">Новая активность</h3>
+            <div class="field">
+                <label for="cTitle">Название</label>
+                <input id="cTitle" type="text" placeholder="Велопрогулка по левому берегу">
+            </div>
+            <div class="field">
+                <label for="cDesc">Описание</label>
+                <textarea id="cDesc" rows="2"></textarea>
+            </div>
+            <div class="row" style="margin-bottom: 12px;">
+                <div class="field">
+                    <label for="cCategory">Категория</label>
+                    <select id="cCategory">
+                        <option value="SPORT">Спорт</option>
+                        <option value="HIKING">Походы</option>
+                        <option value="BOARD_GAMES">Настолки</option>
+                        <option value="CYCLING">Велопрогулки</option>
+                        <option value="COFFEE">Кофе</option>
+                        <option value="OTHER">Другое</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="cLevel">Уровень</label>
+                    <select id="cLevel">
+                        <option value="BEGINNER">Новичок</option>
+                        <option value="INTERMEDIATE">Средний</option>
+                        <option value="ADVANCED">Сложный</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="cMax">Макс. участников</label>
+                    <input id="cMax" type="number" value="6" min="2" max="50">
+                </div>
+            </div>
+            <div class="row" style="margin-bottom: 12px;">
+                <div class="field">
+                    <label for="cStart">Дата и время</label>
+                    <input id="cStart" type="datetime-local">
+                </div>
+                <div class="field">
+                    <label for="cCity">Город</label>
+                    <input id="cCity" type="text" value="Астана">
+                </div>
+                <div class="field">
+                    <label for="cPlace">Место встречи</label>
+                    <input id="cPlace" type="text" placeholder="Триатлон-парк">
+                </div>
+            </div>
+            <div id="createError" class="error"></div>
+            <button class="primary" onclick="createActivity()">Опубликовать</button>
+        </div>
+
+        <div class="row" style="margin-bottom: 18px;" id="filters"></div>
+
+        <div id="feedList" class="grid"></div>
+    </section>
+
+    <!-- ЭКРАН: АКТИВНОСТЬ -->
+    <section id="detailScreen" class="hidden">
+        <p><a class="link" onclick="showFeed()">Назад к ленте</a></p>
+        <div id="detailBody"></div>
+    </section>
+
+</main>
+
+<script>
+    const API = '';                       // тот же origin, что и страница
+    let token = localStorage.getItem('token');
+    let me = null;
+    let currentCategory = null;
+    let currentActivityId = null;
+    let chatTimer = null;
+    let authMode = 'login';
+
+    const CATEGORIES = [
+        { id: null, label: 'Все' },
+        { id: 'SPORT', label: 'Спорт' },
+        { id: 'HIKING', label: 'Походы' },
+        { id: 'BOARD_GAMES', label: 'Настолки' },
+        { id: 'CYCLING', label: 'Велопрогулки' },
+        { id: 'COFFEE', label: 'Кофе' },
+        { id: 'OTHER', label: 'Другое' }
+    ];
+
+    const LEVELS = { BEGINNER: 'Новичок', INTERMEDIATE: 'Средний', ADVANCED: 'Сложный' };
+    const CATS = { SPORT: 'Спорт', HIKING: 'Походы', BOARD_GAMES: 'Настолки', CYCLING: 'Велопрогулки', COFFEE: 'Кофе', OTHER: 'Другое' };
+
+    // ---------- запросы к API ----------
+    async function api(path, options = {}) {
+        const headers = { 'Content-Type': 'application/json' };
+        if (token) headers['Authorization'] = 'Bearer ' + token;
+
+        const res = await fetch(API + path, { ...options, headers });
+
+        if (res.status === 401) { logout(); throw new Error('Нужно войти заново'); }
+        if (res.status === 204) return null;
+
+        const body = await res.json().catch(() => null);
+        if (!res.ok) throw new Error(body?.message || ('Ошибка ' + res.status));
+        return body;
+    }
+
+    function fmtDate(iso) {
+        return new Date(iso).toLocaleString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
+    }
+
+    function show(id) {
+        ['authScreen', 'feedScreen', 'detailScreen'].forEach(s =>
+            document.getElementById(s).classList.toggle('hidden', s !== id));
+        if (chatTimer) { clearInterval(chatTimer); chatTimer = null; }
+    }
+
+    // ---------- вход и регистрация ----------
+    function toggleAuthMode() {
+        authMode = authMode === 'login' ? 'register' : 'login';
+        const isReg = authMode === 'register';
+        document.getElementById('authTitle').textContent = isReg ? 'Регистрация' : 'Вход';
+        document.getElementById('usernameField').classList.toggle('hidden', !isReg);
+        document.getElementById('cityField').classList.toggle('hidden', !isReg);
+        document.getElementById('authSwitchText').textContent = isReg ? 'Уже есть аккаунт?' : 'Нет аккаунта?';
+        document.getElementById('authSwitchLink').textContent = isReg ? 'Войти' : 'Зарегистрироваться';
+        document.getElementById('authError').textContent = '';
+    }
+
+    async function submitAuth() {
+        const err = document.getElementById('authError');
+        err.textContent = '';
+        try {
+            const body = authMode === 'register'
+                ? {
+                    username: document.getElementById('username').value.trim(),
+                    email: document.getElementById('email').value.trim(),
+                    password: document.getElementById('password').value,
+                    city: document.getElementById('city').value.trim()
+                }
+                : {
+                    email: document.getElementById('email').value.trim(),
+                    password: document.getElementById('password').value
+                };
+
+            const data = await api('/api/auth/' + authMode, { method: 'POST', body: JSON.stringify(body) });
+            token = data.token;
+            localStorage.setItem('token', token);
+            me = { id: data.userId, username: data.username };
+            showFeed();
+        } catch (e) {
+            err.textContent = e.message;
+        }
+    }
+
+    function logout() {
+        token = null;
+        me = null;
+        localStorage.removeItem('token');
+        document.getElementById('who').textContent = '';
+        document.getElementById('logoutBtn').classList.add('hidden');
+        show('authScreen');
+    }
+
+    // ---------- лента ----------
+    function renderFilters() {
+        const box = document.getElementById('filters');
+        box.innerHTML = '';
+        CATEGORIES.forEach(c => {
+            const b = document.createElement('button');
+            b.textContent = c.label;
+            if (c.id === currentCategory) b.className = 'active';
+            b.onclick = () => { currentCategory = c.id; renderFilters(); loadFeed(); };
+            box.appendChild(b);
+        });
+    }
+
+    async function loadFeed() {
+        const list = document.getElementById('feedList');
+        list.innerHTML = '<p class="muted">Загрузка…</p>';
+        try {
+            const path = '/api/activities' + (currentCategory ? '?category=' + currentCategory : '');
+            const items = await api(path);
+
+            if (!items.length) { list.innerHTML = '<p class="muted">Пока ничего нет. Создайте первую активность.</p>'; return; }
+
+            list.innerHTML = '';
+            items.forEach(a => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.style.cursor = 'pointer';
+                card.onclick = () => openActivity(a.id);
+                card.innerHTML = `
+        <div class="row" style="justify-content: space-between;">
+          <span class="pill">${CATS[a.category] || a.category}</span>
+          <span class="muted">${LEVELS[a.level] || a.level}</span>
+        </div>
+        <h3 style="font-size:18px; margin:10px 0 8px;">${a.title}</h3>
+        <p class="muted" style="margin:0 0 4px;">${fmtDate(a.startTime)}</p>
+        <p class="muted" style="margin:0 0 12px;">${a.city}, ${a.locationName}</p>
+        <p style="margin:0; font-weight:700;">${a.joinedCount} / ${a.maxParticipants} участников</p>
+      `;
+                list.appendChild(card);
+            });
+        } catch (e) {
+            list.innerHTML = '<p class="error">' + e.message + '</p>';
+        }
+    }
+
+    function toggleCreateForm() {
+        document.getElementById('createForm').classList.toggle('hidden');
+    }
+
+    async function createActivity() {
+        const err = document.getElementById('createError');
+        err.textContent = '';
+        try {
+            const local = document.getElementById('cStart').value;
+            if (!local) throw new Error('Укажите дату и время');
+
+            await api('/api/activities', {
+                method: 'POST',
+                body: JSON.stringify({
+                    title: document.getElementById('cTitle').value.trim(),
+                    description: document.getElementById('cDesc').value.trim(),
+                    category: document.getElementById('cCategory').value,
+                    level: document.getElementById('cLevel').value,
+                    startTime: new Date(local).toISOString(),   // Instant на бэкенде ждёт UTC
+                    city: document.getElementById('cCity').value.trim(),
+                    locationName: document.getElementById('cPlace').value.trim(),
+                    maxParticipants: Number(document.getElementById('cMax').value)
+                })
+            });
+
+            document.getElementById('cTitle').value = '';
+            document.getElementById('cDesc').value = '';
+            toggleCreateForm();
+            loadFeed();
+        } catch (e) {
+            err.textContent = e.message;
+        }
+    }
+
+    // ---------- страница активности ----------
+    async function openActivity(id) {
+        currentActivityId = id;
+        show('detailScreen');
+        const box = document.getElementById('detailBody');
+        box.innerHTML = '<p class="muted">Загрузка…</p>';
+
+        try {
+            const a = await api('/api/activities/' + id);
+            const joined = me && a.participants.some(p => p.id === me.id);
+            const isCreator = me && a.creatorName === me.username;
+
+            box.innerHTML = `
+      <div class="card" style="margin-bottom:16px;">
+        <span class="pill">${CATS[a.category] || a.category}</span>
+        <h1 style="font-size:28px; margin:12px 0;">${a.title}</h1>
+        <p class="muted" style="margin:0 0 4px;">${fmtDate(a.startTime)} &middot; ${LEVELS[a.level] || a.level}</p>
+        <p class="muted" style="margin:0 0 12px;">${a.city}, ${a.locationName}</p>
+        <p style="margin:0 0 16px;">${a.description || ''}</p>
+        <p style="font-weight:700;">${a.joinedCount} / ${a.maxParticipants} участников &middot; организатор: ${a.creatorName}</p>
+        <p class="muted">${a.participants.map(p => p.username).join(', ')}</p>
+        <div id="joinError" class="error"></div>
+        ${isCreator
+                ? '<p class="muted">Вы организатор этой активности.</p>'
+                : joined
+                    ? '<button onclick="leaveActivity()">Выйти из активности</button>'
+                    : '<button class="primary" onclick="joinActivity()">Присоединиться</button>'}
+      </div>
+
+      ${joined || isCreator ? `
+        <div class="card">
+          <h3 style="margin-bottom:14px;">Чат</h3>
+          <div id="chat" class="chat"></div>
+          <div class="row">
+            <input id="msgInput" type="text" placeholder="Сообщение…" style="flex:1 1 200px;">
+            <button class="primary" onclick="sendMessage()">Отправить</button>
+          </div>
+        </div>` : ''}
+    `;
+
+            if (joined || isCreator) {
+                loadChat();
+                chatTimer = setInterval(loadChat, 5000);   // простой опрос вместо WebSocket
+            }
+        } catch (e) {
+            box.innerHTML = '<p class="error">' + e.message + '</p>';
+        }
+    }
+
+    async function joinActivity() {
+        try {
+            await api('/api/activities/' + currentActivityId + '/join', { method: 'POST' });
+            openActivity(currentActivityId);
+        } catch (e) {
+            document.getElementById('joinError').textContent = e.message;
+        }
+    }
+
+    async function leaveActivity() {
+        try {
+            await api('/api/activities/' + currentActivityId + '/leave', { method: 'DELETE' });
+            openActivity(currentActivityId);
+        } catch (e) {
+            document.getElementById('joinError').textContent = e.message;
+        }
+    }
+
+    async function loadChat() {
+        const box = document.getElementById('chat');
+        if (!box) return;
+        try {
+            const messages = await api('/api/activities/' + currentActivityId + '/messages');
+            box.innerHTML = messages.reverse().map(m => `
+      <div class="msg">
+        <div class="muted"><strong style="color:var(--ink)">${m.senderName}</strong> &middot; ${fmtDate(m.createdAt)}</div>
+        <div>${m.text}</div>
+      </div>
+    `).join('');
+            box.scrollTop = box.scrollHeight;
+        } catch (e) {
+            box.innerHTML = '<p class="error">' + e.message + '</p>';
+        }
+    }
+
+    async function sendMessage() {
+        const input = document.getElementById('msgInput');
+        const text = input.value.trim();
+        if (!text) return;
+        try {
+            await api('/api/activities/' + currentActivityId + '/messages', {
+                method: 'POST',
+                body: JSON.stringify({ text })
+            });
+            input.value = '';
+            loadChat();
+        } catch (e) {
+            alert(e.message);
+        }
+    }
+
+    // ---------- запуск ----------
+    async function showFeed() {
+        show('feedScreen');
+        renderFilters();
+        loadFeed();
+    }
+
+    async function start() {
+        if (!token) { show('authScreen'); return; }
+        try {
+            me = await api('/api/users/me');
+            document.getElementById('who').textContent = me.username;
+            document.getElementById('logoutBtn').classList.remove('hidden');
+            showFeed();
+        } catch (e) {
+            logout();
+        }
+    }
+
+    start();
+</script>
+</body>
+</html>
